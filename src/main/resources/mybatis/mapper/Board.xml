@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	
+<!-- SQL 끝에 ; 세미콜론 넣지 마세요!! -->	
+
+<mapper namespace="com.example.board.dao.IBoardDao">
+		<!-- 게시글 정렬 -->
+<!--  	<select id="list" resultType="com.example.board.dto.BoardDto">
+			select * from scott.board order by board_date desc
+		</select> -->
+
+	 
+	 <!-- 게시글 정렬하면서 첨부파일 갯수 가져옴 -->
+	 <select id="list" resultType="com.example.board.dto.BoardDto">
+	 SELECT b.*, f.file_count FROM scott.board b
+ 		LEFT JOIN (
+ 		SELECT board_idx, COUNT(*) AS file_count
+  		FROM scott.bd_file
+  		GROUP BY board_idx
+		) f ON b.board_idx = f.board_idx
+		ORDER BY b.board_date DESC
+	</select>
+	
+	<!-- 게시판 글쓰기 / id: 함수이름 적는곳,  -->
+	<insert id="write">
+		insert into scott.board (board_idx, board_name, board_title, board_content, user_id, board_date, non_user_pw)
+			values(scott.board_seq.nextval, #{param1}, #{param2}, #{param3}, #{param4}, SYSDATE, #{param5})
+	</insert>
+	
+	<!-- 게시글 조회 -->
+	<select id="viewDto" resultType="com.example.board.dto.BoardDto">
+		select * from scott.board where board_idx=#{param1}
+	</select>
+	
+	<!-- 회원 게시글 수정 -->
+	<update id="updateDto">
+		update scott.board set board_title=#{param2}, board_content=#{param3}, user_id=#{param4} where board_idx=#{param1}
+	</update>
+	<!-- 비회원 게시글 수정 -->
+	<update id="updateDto2">
+		UPDATE scott.board SET board_title=#{param2}, board_content=#{param3}, non_user_pw=#{param4} WHERE board_idx=#{param1}
+		
+	</update>
+	
+	<!-- 게시글 삭제 -->
+	<!-- 	<delete id="deleteDto">
+		delete from scott.board where board_idx=#{param1}
+	</delete> -->
+	
+	<!-- 	<delete id="deleteDto">
+		DELETE FROM scott.board WHERE board_idx =#{param1} AND user_id =#{param2} And non_user_pw=#{param3}
+	</delete> -->
+	
+	<!-- 회원 게시글 삭제 -->
+	<delete id="deleteDto">
+	  DELETE FROM scott.board WHERE board_idx=#{param1} AND user_id=#{param2}
+    </delete>
+    
+    <!-- 비회원 게시글 삭제 -->
+    <delete id="deleteDto2">
+	  DELETE FROM scott.board WHERE board_idx=#{param1} AND non_user_pw=#{param2}
+    </delete>
+
+    <select id="getNonUserPw" resultType="java.lang.String">
+        SELECT non_user_pw FROM scott.board WHERE board_idx=#{board_idx}
+    </select>
+
+	<!-- 조회수 증가 -->
+	<update id="hit">
+		update scott.board set board_hit=board_hit+1 where board_idx=#{param1}
+	</update>
+	
+	
+	<select id="searchTitle" resultType="com.example.board.dto.BoardDto">
+		select * from scott.board where board_title like '%'||#{param1}||'%'
+	</select>
+	
+	<select id="searchContent" resultType="com.example.board.dto.BoardDto">
+		select * from scott.board where board_content like '%'||#{param1}||'%'
+	</select>
+	
+	<select id="searchUser" resultType="com.example.board.dto.BoardDto">
+		select * from scott.board where user_id like '%'||#{param1}||'%'
+	</select>
+
+	<!-- 파일 업로드 -->
+	<insert id="saveFile">
+		insert into scott.bd_file (file_no, board_idx, file_save_name, file_real_name,  file_size, file_path)
+			values(scott.bd_file_seq.nextval, (select max(board_idx)from scott.board), #{param1}, #{param2}, #{param3}, #{param4})
+	</insert> 
+	
+	<!-- 첨부파일 조회 -->
+	<select id="searchFile" resultType="com.example.board.dto.FileDto">
+		select * from scott.bd_file where board_idx=#{param1}
+	</select>
+	
+	<!-- 파일 다운로드 -->
+	<select id="downloadFile" parameterType="map" resultType="com.example.board.dto.FileDto">
+		<![CDATA[
+			select file_real_name, file_save_name, file_size
+			From bd_file
+			where file_no = #{file_no}
+			And board_idx = #{board_idx}
+		]]>
+	</select>
+	
+	<!-- 게시판 페이징 -->
+<!-- 	<select id="getList" resultType="com.example.board.dto.BoardDto">
+		<![CDATA[
+			SELECT * 
+			FROM ( select ROWNUM RN,
+								A.*
+					from ( select *
+							from scott.board
+							order by board_idx desc) A )
+			where RN > (#{pageNum}-1) * #{amount} AND RN <= #{pageNum} * #{amount} 
+		]]>
+	</select>  -->
+	
+	<!-- 게시판 페이징 + 검색 -->
+		<select id="getList" resultType="com.example.board.dto.BoardDto">
+		<![CDATA[
+			SELECT * 
+			FROM ( select ROWNUM RN,
+								A.*
+					from ( select *
+							from scott.board
+							where
+		]]>		
+			<if test="searchType == 'title'">board_title LIKE '%' || #{searchKeyword} || '%' </if>	
+			<if test="searchType == 'user'">user_id LIKE '%' || #{searchKeyword} || '%' </if>	
+			<if test="searchType == 'content'">board_content  LIKE '%' || #{searchKeyword} || '%' </if>	
+			<if test="searchType == null or searchType == '' ">1 = 1</if>	
+		<![CDATA[
+							order by board_idx desc) A )
+			where RN > (#{pageNum}-1) * #{amount} AND RN <= #{pageNum} * #{amount} 
+		]]>
+	</select> 
+	
+	<!-- 게시글 총 갯수  -->
+	 <select id="getTotal" resultType="int">
+		select count(*) as total from scott.board
+		where <if test="searchType == 'title'">board_title LIKE '%' ||#{searchKeyword}||'%'</if>
+			<if test="searchType == 'user'">user_id LIKE '%' ||#{searchKeyword}||'%'</if>
+			<if test="searchType == 'content'">board_content LIKE '%' ||#{searchKeyword}||'%'</if>
+			<if test="searchType == null or searchType == '' ">1 = 1</if>
+	</select>
+<!--  	<select id="getTotal" resultType="int">
+		select count(*) as total from scott.board
+	</select> --> 
+			
+</mapper> 

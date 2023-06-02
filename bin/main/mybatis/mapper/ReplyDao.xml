@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	
+<!-- SQL 끝에 ; 세미콜론 넣지 마세요!! -->	
+
+<mapper namespace="com.example.board.dao.IReplyDao">
+
+	<!-- 댓글 목록 -->
+	<select id="reply_list" resultType="com.example.board.dto.ReplyDto">
+		<!-- select * from scott.reply where reply_board_idx=#{param1} order by reply_level, reply_date DESC -->
+		SELECT * FROM scott.reply WHERE reply_board_idx=#{param1} 
+			ORDER BY CASE WHEN parent_id IS NULL THEN reply_idx ELSE parent_id END, reply_idx, reply_level DESC
+	</select>
+	
+	<!-- 댓글 작성 -->
+	<insert id="reply_write">
+	INSERT INTO scott.reply (reply_idx, reply_name, reply_content, reply_date, reply_board_idx, reply_level, is_deleted, parent_id)
+		VALUES(scott.reply_board_seq.nextval, #{param1}, #{param2}, SYSDATE, #{param3}, #{param4}, #{param5}, #{param6})
+	</insert>
+
+	
+<!-- 댓글 삭제  -->
+<!-- 	<delete id="reply_deleteDto">
+		delete from scott.reply where reply_idx=#{param1}
+	</delete> -->
+	<delete id="reply_deleteDto">
+		<!-- UPDATE scott.reply SET is_deleted = '1' WHERE reply_idx=#{reply_idx} -->
+		UPDATE scott.reply SET is_deleted=1 WHERE reply_idx=#{param1} AND reply_board_idx=#{param2} AND reply_name=#{param3}
+	</delete> 
+	
+</mapper>  
